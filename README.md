@@ -10,8 +10,12 @@ phones with a 6-character room PIN and compete on a live leaderboard.
   participants, current question, scores) lives entirely in server memory, keyed
   by the PIN. A single Node.js process comfortably handles 500 concurrent
   Socket.IO connections, so there's no database or Redis needed for the live game.
-- **Quiz content is persisted** to `data/quizzes.json` on disk, edited through the
-  Guru's in-app Quiz Editor (no code changes needed to write/update questions).
+- **Quiz content is persisted to MongoDB** (when `MONGODB_URI` is set — see
+  "Persisting quizzes" below), edited through the Guru's in-app Quiz Editor. Quizzes
+  built once survive server restarts/redeploys, so you can reuse them across
+  events. Without `MONGODB_URI` set, it falls back to a local `data/quizzes.json`
+  file — handy for local development, but that file does **not** survive a
+  redeploy on most hosts (no persistent disk on Render's free tier, for example).
 - **Server-authoritative timing and scoring.** The 15-second timer and each
   answer's elapsed time are measured on the server, not trusted from the client,
   so a participant can't fake a fast answer.
@@ -21,11 +25,13 @@ phones with a 6-character room PIN and compete on a live leaderboard.
 ## Project structure
 
 ```
-server/            Express + Socket.IO backend (rooms, scoring, quiz storage)
-data/quizzes.json  Persisted quiz question banks
-client/             React (Vite) frontend
-  src/pages/host/    Guru: login, dashboard, quiz editor, live session control
-  src/pages/participant/  Chhatra: live play screen
+server/                    Express + Socket.IO backend (rooms, scoring, quiz storage)
+  storage/mongoQuizzes.js   MongoDB-backed quiz storage (used when MONGODB_URI is set)
+  storage/fileQuizzes.js    Local-JSON-file quiz storage (local dev fallback)
+data/quizzes.json          Fallback quiz storage when MONGODB_URI isn't set
+client/                    React (Vite) frontend
+  src/pages/host/           Guru: login, dashboard, quiz editor, live session control
+  src/pages/participant/    Chhatra: live play screen
 ```
 
 ## Local development
@@ -55,6 +61,28 @@ can create/control quizzes. In production (`NODE_ENV=production`), the server
 refuses to start at all if `HOST_PASSCODE` is still the default — it exits with
 a `FATAL:` log line rather than silently running with a guessable passcode.
 
+## Persisting quizzes across restarts (MongoDB Atlas, free)
+
+By default (no `MONGODB_URI` set) quizzes live in a local file, which is fine for
+trying things out locally but gets wiped on most hosts whenever the server
+restarts. To build your 25 questions **once** and reuse them for every future
+event, connect a free MongoDB database:
+
+1. Create a free account at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+   and create a free **M0** cluster (512MB, free forever — no expiration).
+2. Under **Database Access**, add a database user with a password.
+3. Under **Network Access**, add `0.0.0.0/0` (allow access from anywhere) — Render's
+   free tier doesn't have a fixed outbound IP, so this is required.
+4. Click **Connect → Drivers**, copy the connection string (looks like
+   `mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/`).
+5. Set that as the `MONGODB_URI` environment variable — locally in a `.env`-style
+   export before `npm run dev`, or in Render's dashboard (the `render.yaml`
+   Blueprint already declares this env var and will prompt you for it).
+
+Once set, every quiz you create through the Guru dashboard is stored in MongoDB
+and will still be there the next time you start a session — even after the
+Render free instance sleeps and wakes back up, or after a redeploy.
+
 ## Production build & run
 
 ```bash
@@ -78,22 +106,25 @@ setup is one step:
 3. When prompted for `HOST_PASSCODE`, enter your own secret — never leave it as
    `jain-guru`, and note the server refuses to boot in production without a real
    value set.
-4. Deploy.
+4. When prompted for `MONGODB_URI`, paste your MongoDB Atlas connection string
+   (see "Persisting quizzes" above) — or leave it blank if you're fine rebuilding
+   questions before each event; the app falls back to local storage either way.
+5. Deploy.
 
 (No Blueprint support, or prefer the manual dashboard? **New → Web Service**,
 connect the repo, set build command `npm install && npm run build`, start
-command `npm start`, and add `HOST_PASSCODE` + `NODE_ENV=production` as
-environment variables yourself.)
+command `npm start`, and add `HOST_PASSCODE` + `NODE_ENV=production` (and
+`MONGODB_URI`, if you want persistent quizzes) as environment variables yourself.)
 
 **Caveats of the free tier:**
 - It spins down after ~15 minutes of no traffic and takes a few seconds to wake
   on the next request. For a live event, have the Guru open the site a minute or
   two before participants join so it's already warm — mid-quiz it won't sleep
   since traffic is continuous.
-- Free-tier disk is **ephemeral** — a redeploy resets `data/quizzes.json`. Build
-  your 25 questions shortly before the event, or keep a backup copy of the quiz
-  JSON (visible via `GET /api/quizzes/:id` with your host passcode) so you can
-  recreate it if needed.
+- Free-tier disk is **ephemeral** — without `MONGODB_URI` set, quizzes are lost
+  whenever the instance restarts (including the idle-sleep/wake cycle above, not
+  just redeploys). Set `MONGODB_URI` (see "Persisting quizzes") if you want to
+  build questions once and reuse them.
 - One live session = one process, so don't run multiple Render instances behind
   a load balancer for this app (that would split participants across processes
   that don't share room state). A single free instance is exactly what 500

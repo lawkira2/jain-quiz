@@ -11,3 +11,5 @@ services:
         value: production
       - key: HOST_PASSCODE
         sync: false
+      - key: MONGODB_URI
+        sync: false
