@@ -5,6 +5,7 @@ import { getHostPasscode } from '../../lib/api.js';
 import Timer from '../../components/Timer.jsx';
 import AnswerBars from '../../components/AnswerBars.jsx';
 import LeaderboardList from '../../components/LeaderboardList.jsx';
+import JoinQRCode from '../../components/JoinQRCode.jsx';
 
 export default function HostSession() {
   const { pin } = useParams();
@@ -118,6 +119,12 @@ export default function HostSession() {
           <>
             <p className="muted">रूम पिन — इसे अपने छात्रों के साथ साझा करें</p>
             <div className="pin-display">{pin}</div>
+            <div style={{ margin: '8px 0 16px' }}>
+              <JoinQRCode url={`${window.location.origin}/join?pin=${pin}`} />
+              <p className="muted" style={{ marginTop: 10 }}>
+                कैमरा या क्यूआर स्कैनर से स्कैन करें — पिन अपने आप भर जाएगा
+              </p>
+            </div>
             <p className="muted" style={{ marginBottom: 20 }}>
               {participants.length} शामिल हुए
             </p>

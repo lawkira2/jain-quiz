@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function Join() {
   const navigate = useNavigate();
-  const [pin, setPin] = useState('');
+  const [searchParams] = useSearchParams();
+  const pinFromLink = (searchParams.get('pin') || '').toUpperCase();
+  const [pin, setPin] = useState(pinFromLink);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
@@ -44,6 +46,7 @@ export default function Join() {
               placeholder="उदाहरण: प्रिया"
               autoComplete="off"
               maxLength={24}
+              autoFocus={!!pinFromLink}
             />
           </div>
           {error && <p className="error-text">{error}</p>}
