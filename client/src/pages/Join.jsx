@@ -11,8 +11,8 @@ export default function Join() {
     e.preventDefault();
     const cleanPin = pin.trim().toUpperCase();
     const cleanName = name.trim();
-    if (cleanPin.length < 4) return setError('Enter the room PIN shown by your Guru.');
-    if (!cleanName) return setError('Enter your name.');
+    if (cleanPin.length < 4) return setError('अपने गुरु द्वारा दिखाया गया रूम पिन दर्ज करें।');
+    if (!cleanName) return setError('अपना नाम दर्ज करें।');
     setError('');
     navigate(`/play/${cleanPin}`, { state: { name: cleanName } });
   }
@@ -20,35 +20,35 @@ export default function Join() {
   return (
     <div className="screen">
       <div className="card">
-        <h1 className="brand-title">Join Quiz</h1>
-        <p className="brand-subtitle">Enter the PIN your Guru shared and your name.</p>
+        <h1 className="brand-title">क्विज़ में शामिल हों</h1>
+        <p className="brand-subtitle">अपने गुरु द्वारा साझा किया गया पिन और अपना नाम दर्ज करें।</p>
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
           <div className="field">
-            <label htmlFor="pin">Room PIN</label>
+            <label htmlFor="pin">रूम पिन</label>
             <input
               id="pin"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="e.g. K3F7ZQ"
+              placeholder="उदाहरण: K3F7ZQ"
               autoComplete="off"
               autoCapitalize="characters"
               maxLength={8}
             />
           </div>
           <div className="field">
-            <label htmlFor="name">Your Name</label>
+            <label htmlFor="name">आपका नाम</label>
             <input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Priya"
+              placeholder="उदाहरण: प्रिया"
               autoComplete="off"
               maxLength={24}
             />
           </div>
           {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn btn-primary">
-            Enter Room
+            रूम में प्रवेश करें
           </button>
         </form>
       </div>

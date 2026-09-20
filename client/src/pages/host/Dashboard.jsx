@@ -27,7 +27,7 @@ export default function Dashboard() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this quiz? This cannot be undone.')) return;
+    if (!confirm('इस क्विज़ को हटाएं? इसे पूर्ववत नहीं किया जा सकता।')) return;
     await api.deleteQuiz(id);
     refresh();
   }
@@ -35,7 +35,7 @@ export default function Dashboard() {
   async function handleStart(quiz) {
     setError('');
     if (quiz.questionCount === 0) {
-      setError(`"${quiz.title}" has no questions yet. Edit it first.`);
+      setError(`"${quiz.title}" में अभी कोई प्रश्न नहीं है। पहले इसे संपादित करें।`);
       return;
     }
     setStarting(quiz.id);
@@ -59,27 +59,27 @@ export default function Dashboard() {
       <div className="card">
         <div className="top-bar">
           <h1 className="brand-title" style={{ margin: 0 }}>
-            Guru Dashboard
+            गुरु डैशबोर्ड
           </h1>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={handleLogout}>
-            Log out
+            लॉग आउट
           </button>
         </div>
-        <p className="brand-subtitle">Create quizzes, then start a live session for your Chhatras.</p>
+        <p className="brand-subtitle">क्विज़ बनाएं, फिर अपने छात्रों के लिए लाइव सत्र शुरू करें।</p>
 
         {error && <p className="error-text">{error}</p>}
 
         <button className="btn btn-primary" style={{ marginBottom: 20 }} onClick={() => navigate('/host/quiz/new')}>
-          + New Quiz
+          + नया क्विज़
         </button>
 
-        {quizzes.length === 0 && <p className="muted">No quizzes yet. Create one to get started.</p>}
+        {quizzes.length === 0 && <p className="muted">अभी तक कोई क्विज़ नहीं है। शुरू करने के लिए एक बनाएं।</p>}
 
         {quizzes.map((quiz) => (
           <div className="quiz-list-row" key={quiz.id}>
             <div>
               <strong>{quiz.title}</strong>
-              <div className="muted">{quiz.questionCount} question{quiz.questionCount === 1 ? '' : 's'}</div>
+              <div className="muted">{quiz.questionCount} प्रश्न</div>
             </div>
             <div className="btn-row" style={{ width: 'auto' }}>
               <button
@@ -87,14 +87,14 @@ export default function Dashboard() {
                 style={{ width: 'auto', padding: '8px 14px' }}
                 onClick={() => navigate(`/host/quiz/${quiz.id}`)}
               >
-                Edit
+                संपादित करें
               </button>
               <button
                 className="btn btn-secondary"
                 style={{ width: 'auto', padding: '8px 14px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
                 onClick={() => handleDelete(quiz.id)}
               >
-                Delete
+                हटाएं
               </button>
               <button
                 className="btn btn-primary"
@@ -102,7 +102,7 @@ export default function Dashboard() {
                 disabled={starting === quiz.id}
                 onClick={() => handleStart(quiz)}
               >
-                {starting === quiz.id ? 'Starting…' : 'Start Session'}
+                {starting === quiz.id ? 'शुरू हो रहा है…' : 'सत्र शुरू करें'}
               </button>
             </div>
           </div>

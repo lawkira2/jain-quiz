@@ -22,14 +22,14 @@ if (!isProd) app.use(cors());
 
 function requireHost(req, res, next) {
   if (req.headers['x-host-passcode'] !== HOST_PASSCODE) {
-    return res.status(401).json({ ok: false, error: 'Invalid host passcode.' });
+    return res.status(401).json({ ok: false, error: 'अमान्य होस्ट पासकोड।' });
   }
   next();
 }
 
 app.post('/api/auth/host', (req, res) => {
   if (req.body?.passcode === HOST_PASSCODE) return res.json({ ok: true });
-  res.status(401).json({ ok: false, error: 'Invalid host passcode.' });
+  res.status(401).json({ ok: false, error: 'अमान्य होस्ट पासकोड।' });
 });
 
 app.get('/api/quizzes', requireHost, async (req, res) => {
@@ -38,7 +38,7 @@ app.get('/api/quizzes', requireHost, async (req, res) => {
 
 app.get('/api/quizzes/:id', requireHost, async (req, res) => {
   const quiz = await getQuiz(req.params.id);
-  if (!quiz) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!quiz) return res.status(404).json({ ok: false, error: 'नहीं मिला।' });
   res.json({ ok: true, quiz });
 });
 
@@ -49,7 +49,7 @@ app.post('/api/quizzes', requireHost, async (req, res) => {
 
 app.put('/api/quizzes/:id', requireHost, async (req, res) => {
   const quiz = await updateQuiz(req.params.id, req.body || {});
-  if (!quiz) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!quiz) return res.status(404).json({ ok: false, error: 'नहीं मिला।' });
   res.json({ ok: true, quiz });
 });
 
@@ -60,15 +60,15 @@ app.delete('/api/quizzes/:id', requireHost, async (req, res) => {
 
 app.post('/api/rooms', requireHost, async (req, res) => {
   const quiz = await getQuiz(req.body?.quizId);
-  if (!quiz) return res.status(404).json({ ok: false, error: 'Quiz not found.' });
-  if (!quiz.questions.length) return res.status(400).json({ ok: false, error: 'Quiz has no questions.' });
+  if (!quiz) return res.status(404).json({ ok: false, error: 'क्विज़ नहीं मिला।' });
+  if (!quiz.questions.length) return res.status(400).json({ ok: false, error: 'क्विज़ में कोई प्रश्न नहीं है।' });
   const room = createRoom(quiz);
   res.json({ ok: true, pin: room.pin });
 });
 
 app.get('/api/rooms/:pin', async (req, res) => {
   const room = getRoom(req.params.pin);
-  if (!room) return res.status(404).json({ ok: false, error: 'Room not found.' });
+  if (!room) return res.status(404).json({ ok: false, error: 'रूम नहीं मिला।' });
   res.json({ ok: true, status: room.status, quizTitle: room.quiz.title, participantCount: room.participants.size });
 });
 

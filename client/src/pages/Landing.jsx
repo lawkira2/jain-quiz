@@ -7,14 +7,14 @@ export default function Landing() {
     <div className="screen">
       <div className="card">
         <WheelMark size={56} />
-        <h1 className="brand-title">Jain Gyan Quiz</h1>
-        <p className="brand-subtitle">A live quiz on Jainism — join as a Chhatra or run the show as the Guru.</p>
+        <h1 className="brand-title">जैन ज्ञान क्विज़</h1>
+        <p className="brand-subtitle">जैन धर्म पर एक लाइव क्विज़ — छात्र के रूप में जुड़ें या गुरु के रूप में संचालन करें।</p>
         <div className="btn-row">
           <button className="btn btn-primary" onClick={() => navigate('/host')}>
-            I'm the Guru
+            मैं गुरु हूँ
           </button>
           <button className="btn btn-chhatra" onClick={() => navigate('/join')}>
-            Join as Chhatra
+            छात्र के रूप में जुड़ें
           </button>
         </div>
       </div>

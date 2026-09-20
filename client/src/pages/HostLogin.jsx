@@ -26,11 +26,11 @@ export default function HostLogin() {
   return (
     <div className="screen">
       <div className="card">
-        <h1 className="brand-title">Guru Login</h1>
-        <p className="brand-subtitle">Enter the host passcode to manage quizzes and run sessions.</p>
+        <h1 className="brand-title">गुरु लॉगिन</h1>
+        <p className="brand-subtitle">क्विज़ प्रबंधित करने और सत्र चलाने के लिए होस्ट पासकोड दर्ज करें।</p>
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
           <div className="field">
-            <label htmlFor="passcode">Host Passcode</label>
+            <label htmlFor="passcode">होस्ट पासकोड</label>
             <input
               id="passcode"
               type="password"
@@ -41,7 +41,7 @@ export default function HostLogin() {
           </div>
           {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'Checking…' : 'Continue'}
+            {busy ? 'जाँच हो रही है…' : 'आगे बढ़ें'}
           </button>
         </form>
       </div>

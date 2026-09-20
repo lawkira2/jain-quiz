@@ -79,8 +79,8 @@ export function registerSocketHandlers(io) {
 
     socket.on('host:join', ({ pin, passcode } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room) return ack?.({ ok: false, error: 'Room not found.' });
-      if (passcode !== HOST_PASSCODE) return ack?.({ ok: false, error: 'Invalid host passcode.' });
+      if (!room) return ack?.({ ok: false, error: 'रूम नहीं मिला।' });
+      if (passcode !== HOST_PASSCODE) return ack?.({ ok: false, error: 'अमान्य होस्ट पासकोड।' });
       room.hostSocketId = socket.id;
       socket.join(room.pin);
       joinedPin = room.pin;
@@ -99,11 +99,11 @@ export function registerSocketHandlers(io) {
 
     socket.on('participant:join', ({ pin, name } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room) return ack?.({ ok: false, error: 'Room not found. Check the PIN.' });
-      if (room.status !== 'lobby') return ack?.({ ok: false, error: 'This quiz has already started.' });
-      if (room.participants.size >= MAX_PARTICIPANTS) return ack?.({ ok: false, error: 'Room is full.' });
+      if (!room) return ack?.({ ok: false, error: 'रूम नहीं मिला। पिन जांचें।' });
+      if (room.status !== 'lobby') return ack?.({ ok: false, error: 'यह क्विज़ पहले ही शुरू हो चुका है।' });
+      if (room.participants.size >= MAX_PARTICIPANTS) return ack?.({ ok: false, error: 'रूम भर गया है।' });
       const cleanName = (name || '').trim().slice(0, 24);
-      if (!cleanName) return ack?.({ ok: false, error: 'Please enter your name.' });
+      if (!cleanName) return ack?.({ ok: false, error: 'कृपया अपना नाम दर्ज करें।' });
 
       const participant = addParticipant(room, { socketId: socket.id, name: cleanName });
       socket.join(room.pin);
@@ -119,16 +119,16 @@ export function registerSocketHandlers(io) {
 
     socket.on('host:start', ({ pin } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'Not authorized.' });
-      if (room.status !== 'lobby') return ack?.({ ok: false, error: 'Quiz already started.' });
-      if (room.quiz.questions.length === 0) return ack?.({ ok: false, error: 'Quiz has no questions.' });
+      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'अनुमति नहीं है।' });
+      if (room.status !== 'lobby') return ack?.({ ok: false, error: 'क्विज़ पहले ही शुरू हो चुका है।' });
+      if (room.quiz.questions.length === 0) return ack?.({ ok: false, error: 'क्विज़ में कोई प्रश्न नहीं है।' });
       startQuestion(io, room, 0);
       ack?.({ ok: true });
     });
 
     socket.on('host:next', ({ pin } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'Not authorized.' });
+      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'अनुमति नहीं है।' });
       if (room.status === 'question') {
         closeQuestion(io, room);
         return ack?.({ ok: true });
@@ -145,7 +145,7 @@ export function registerSocketHandlers(io) {
 
     socket.on('host:end', ({ pin } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'Not authorized.' });
+      if (!room || room.hostSocketId !== socket.id) return ack?.({ ok: false, error: 'अनुमति नहीं है।' });
       io.to(room.pin).emit('room:closed');
       deleteRoom(room.pin);
       ack?.({ ok: true });
@@ -153,11 +153,11 @@ export function registerSocketHandlers(io) {
 
     socket.on('participant:answer', ({ pin, optionIndex } = {}, ack) => {
       const room = getRoom(pin);
-      if (!room || room.status !== 'question') return ack?.({ ok: false, error: 'No active question.' });
+      if (!room || room.status !== 'question') return ack?.({ ok: false, error: 'कोई सक्रिय प्रश्न नहीं है।' });
       const participant = room.participants.get(socket.id);
-      if (!participant) return ack?.({ ok: false, error: 'Not joined.' });
-      if (participant.currentAnswer) return ack?.({ ok: false, error: 'Already answered.' });
-      if (![0, 1, 2, 3].includes(optionIndex)) return ack?.({ ok: false, error: 'Invalid option.' });
+      if (!participant) return ack?.({ ok: false, error: 'आप शामिल नहीं हुए हैं।' });
+      if (participant.currentAnswer) return ack?.({ ok: false, error: 'पहले ही उत्तर दे दिया गया है।' });
+      if (![0, 1, 2, 3].includes(optionIndex)) return ack?.({ ok: false, error: 'अमान्य विकल्प।' });
 
       const elapsedMs = Date.now() - room.questionStartTime;
       participant.currentAnswer = { questionIndex: room.currentQuestionIndex, optionIndex, elapsedMs };

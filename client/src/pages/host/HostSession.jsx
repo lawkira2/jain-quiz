@@ -31,7 +31,7 @@ export default function HostSession() {
     async function join() {
       const res = await emitAsync('host:join', { pin, passcode: getHostPasscode() });
       if (!res?.ok) {
-        setError(res?.error || 'Could not join room.');
+        setError(res?.error || 'रूम में शामिल नहीं हो सके।');
         setPhase('error');
         return;
       }
@@ -82,19 +82,19 @@ export default function HostSession() {
   }
 
   async function handleEnd() {
-    if (!confirm('End this session for everyone?')) return;
+    if (!confirm('सभी के लिए यह सत्र समाप्त करें?')) return;
     await emitAsync('host:end', { pin });
     navigate('/host/dashboard');
   }
 
-  if (phase === 'connecting') return <div className="screen">Connecting…</div>;
+  if (phase === 'connecting') return <div className="screen">कनेक्ट हो रहा है…</div>;
   if (phase === 'error')
     return (
       <div className="screen">
         <div className="card">
           <p className="error-text">{error}</p>
           <button className="btn btn-primary" onClick={() => navigate('/host/dashboard')}>
-            Back to Dashboard
+            डैशबोर्ड पर वापस जाएं
           </button>
         </div>
       </div>
@@ -110,16 +110,16 @@ export default function HostSession() {
             style={{ width: 'auto', padding: '6px 12px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
             onClick={handleEnd}
           >
-            End Session
+            सत्र समाप्त करें
           </button>
         </div>
 
         {phase === 'lobby' && (
           <>
-            <p className="muted">Room PIN — share this with your Chhatras</p>
+            <p className="muted">रूम पिन — इसे अपने छात्रों के साथ साझा करें</p>
             <div className="pin-display">{pin}</div>
             <p className="muted" style={{ marginBottom: 20 }}>
-              {participants.length} joined
+              {participants.length} शामिल हुए
             </p>
             <div style={{ maxHeight: 240, overflowY: 'auto', width: '100%', marginBottom: 20 }}>
               <ul className="leaderboard-list">
@@ -131,7 +131,7 @@ export default function HostSession() {
               </ul>
             </div>
             <button className="btn btn-primary" disabled={busy || participants.length === 0} onClick={handleStart}>
-              {participants.length === 0 ? 'Waiting for Chhatras…' : busy ? 'Starting…' : 'Start Quiz'}
+              {participants.length === 0 ? 'छात्रों की प्रतीक्षा हो रही है…' : busy ? 'शुरू हो रहा है…' : 'क्विज़ शुरू करें'}
             </button>
           </>
         )}
@@ -139,15 +139,15 @@ export default function HostSession() {
         {phase === 'question' && question && (
           <>
             <p className="muted">
-              Question {question.index + 1} / {question.total}
+              प्रश्न {question.index + 1} / {question.total}
             </p>
             <h2>{question.text}</h2>
             <Timer startTime={question.startTime} limitMs={question.limitMs} />
             <p className="muted" style={{ marginBottom: 20 }}>
-              {answeredCount.count} / {answeredCount.total || participants.length} answered
+              {answeredCount.count} / {answeredCount.total || participants.length} ने उत्तर दिया
             </p>
             <button className="btn btn-secondary" onClick={handleNext} disabled={busy}>
-              Reveal Answer Now
+              अभी उत्तर दिखाएं
             </button>
           </>
         )}
@@ -155,25 +155,25 @@ export default function HostSession() {
         {phase === 'results' && results && question && (
           <>
             <p className="muted">
-              Question {results.index + 1} / {totalQuestions}
+              प्रश्न {results.index + 1} / {totalQuestions}
             </p>
             <h2>{question.text}</h2>
-            <p style={{ color: 'var(--good)', fontWeight: 700 }}>Correct: {question.options[results.correctIndex]}</p>
+            <p style={{ color: 'var(--good)', fontWeight: 700 }}>सही उत्तर: {question.options[results.correctIndex]}</p>
             <AnswerBars options={question.options} counts={results.counts} correctIndex={results.correctIndex} />
-            <h3 style={{ marginTop: 20 }}>Leaderboard</h3>
+            <h3 style={{ marginTop: 20 }}>लीडरबोर्ड</h3>
             <LeaderboardList entries={results.leaderboard} />
             <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={handleNext} disabled={busy}>
-              {results.isLastQuestion ? 'Show Final Results' : 'Next Question'}
+              {results.isLastQuestion ? 'अंतिम परिणाम दिखाएं' : 'अगला प्रश्न'}
             </button>
           </>
         )}
 
         {phase === 'final' && finalLeaderboard && (
           <>
-            <h2>🏆 Final Leaderboard</h2>
+            <h2>🏆 अंतिम लीडरबोर्ड</h2>
             <LeaderboardList entries={finalLeaderboard} />
             <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={handleEnd}>
-              End Session
+              सत्र समाप्त करें
             </button>
           </>
         )}

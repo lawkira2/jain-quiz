@@ -22,7 +22,7 @@ async function request(path, { method = 'GET', body, hostAuth = false } = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.ok === false) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    throw new Error(data.error || `अनुरोध विफल (${res.status})`);
   }
   return data;
 }

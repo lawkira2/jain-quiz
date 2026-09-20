@@ -32,7 +32,7 @@ export default function Play() {
     async function join() {
       const res = await emitAsync('participant:join', { pin, name });
       if (!res?.ok) {
-        setError(res?.error || 'Could not join.');
+        setError(res?.error || 'शामिल नहीं हो सके।');
         setPhase('error');
         return;
       }
@@ -77,11 +77,11 @@ export default function Play() {
     setPhase('answered');
     const res = await emitAsync('participant:answer', { pin, optionIndex });
     if (!res?.ok) {
-      setError(res?.error || 'Could not submit answer.');
+      setError(res?.error || 'उत्तर सबमिट नहीं हो सका।');
     }
   }
 
-  if (phase === 'joining') return <div className="screen">Joining…</div>;
+  if (phase === 'joining') return <div className="screen">जुड़ रहे हैं…</div>;
 
   if (phase === 'error')
     return (
@@ -89,7 +89,7 @@ export default function Play() {
         <div className="card">
           <p className="error-text">{error}</p>
           <button className="btn btn-primary" onClick={() => navigate('/join')}>
-            Try Again
+            पुनः प्रयास करें
           </button>
         </div>
       </div>
@@ -99,10 +99,10 @@ export default function Play() {
     return (
       <div className="screen">
         <div className="card">
-          <h2>Session Ended</h2>
-          <p className="muted">Thanks for playing!</p>
+          <h2>सत्र समाप्त हुआ</h2>
+          <p className="muted">खेलने के लिए धन्यवाद!</p>
           <button className="btn btn-primary" onClick={() => navigate('/')}>
-            Home
+            होम
           </button>
         </div>
       </div>
@@ -114,16 +114,16 @@ export default function Play() {
         {phase === 'lobby' && (
           <>
             <span className="badge">{quizTitle}</span>
-            <h2 style={{ marginTop: 16 }}>You're in, {name}!</h2>
-            <p className="muted">Waiting for the Guru to start the quiz…</p>
-            <p className="muted">{lobbyCount} players in the room</p>
+            <h2 style={{ marginTop: 16 }}>आप शामिल हो गए, {name}!</h2>
+            <p className="muted">गुरु द्वारा क्विज़ शुरू करने की प्रतीक्षा हो रही है…</p>
+            <p className="muted">रूम में {lobbyCount} खिलाड़ी हैं</p>
           </>
         )}
 
         {(phase === 'question' || phase === 'answered') && question && (
           <>
             <p className="muted">
-              Question {question.index + 1} / {question.total}
+              प्रश्न {question.index + 1} / {question.total}
             </p>
             <h2>{question.text}</h2>
             <Timer startTime={question.startTime} limitMs={question.limitMs} />
@@ -139,7 +139,7 @@ export default function Play() {
                 />
               ))}
             </div>
-            {phase === 'answered' && <p className="muted" style={{ marginTop: 16 }}>Answer locked in — waiting for others…</p>}
+            {phase === 'answered' && <p className="muted" style={{ marginTop: 16 }}>उत्तर लॉक हो गया — अन्य लोगों की प्रतीक्षा हो रही है…</p>}
           </>
         )}
 
@@ -148,35 +148,35 @@ export default function Play() {
             {personalResult ? (
               <>
                 <h2 className={personalResult.correct ? 'feedback-correct' : 'feedback-wrong'}>
-                  {personalResult.correct ? 'Correct! 🎉' : 'Not quite'}
+                  {personalResult.correct ? 'सही! 🎉' : 'सही नहीं'}
                 </h2>
                 <p className="muted">
-                  {personalResult.correct ? `+${personalResult.points} points` : 'No points this round'}
+                  {personalResult.correct ? `+${personalResult.points} अंक` : 'इस राउंड में कोई अंक नहीं'}
                 </p>
-                <p style={{ fontSize: '1.3rem', fontWeight: 800 }}>Total: {personalResult.score}</p>
+                <p style={{ fontSize: '1.3rem', fontWeight: 800 }}>कुल: {personalResult.score}</p>
               </>
             ) : (
-              <p className="muted">No answer recorded this round.</p>
+              <p className="muted">इस राउंड में कोई उत्तर दर्ज नहीं हुआ।</p>
             )}
             {question && (
               <p className="muted" style={{ marginTop: 8 }}>
-                Correct answer: <strong>{question.options[roundResults.correctIndex]}</strong>
+                सही उत्तर: <strong>{question.options[roundResults.correctIndex]}</strong>
               </p>
             )}
-            <h3 style={{ marginTop: 20 }}>Leaderboard</h3>
+            <h3 style={{ marginTop: 20 }}>लीडरबोर्ड</h3>
             <LeaderboardList entries={roundResults.leaderboard} myId={myId} />
-            <p className="muted" style={{ marginTop: 16 }}>Waiting for the Guru to continue…</p>
+            <p className="muted" style={{ marginTop: 16 }}>गुरु के आगे बढ़ने की प्रतीक्षा हो रही है…</p>
           </>
         )}
 
         {phase === 'final' && finalLeaderboard && (
           <>
-            <h2>🏆 Final Results</h2>
+            <h2>🏆 अंतिम परिणाम</h2>
             {(() => {
               const mine = finalLeaderboard.find((p) => p.id === myId);
               return mine ? (
                 <p style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                  You finished #{mine.rank} with {mine.score} points
+                  आपने #{mine.rank} स्थान पर {mine.score} अंकों के साथ समाप्त किया
                 </p>
               ) : null;
             })()}

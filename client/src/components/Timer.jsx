@@ -47,7 +47,7 @@ export default function Timer({ startTime, limitMs }) {
         <circle cx="60" cy="60" r="8" fill="var(--brand)" />
       </svg>
       <span className="wheel-timer-num" style={{ color: urgent ? 'var(--critical)' : 'var(--text-primary)' }}>
-        {seconds}s
+        {seconds} सेकंड
       </span>
     </div>
   );

@@ -64,9 +64,9 @@ export default function QuizEditor() {
   async function handleSave() {
     setError('');
     setNotice('');
-    if (!title.trim()) return setError('Give the quiz a title.');
+    if (!title.trim()) return setError('क्विज़ को एक शीर्षक दें।');
     const complete = questions.filter((q) => q.text.trim() && q.options.every((o) => o.trim()));
-    if (complete.length === 0) return setError('Add at least one fully-filled question (text + 4 options).');
+    if (complete.length === 0) return setError('कम से कम एक पूरी तरह भरा हुआ प्रश्न जोड़ें (पाठ + 4 विकल्प)।');
 
     setSaving(true);
     try {
@@ -75,7 +75,7 @@ export default function QuizEditor() {
         navigate(`/host/quiz/${quiz.id}`);
       } else {
         await api.updateQuiz(id, { title, questions: complete });
-        setNotice('Saved.');
+        setNotice('सहेजा गया।');
       }
     } catch (err) {
       setError(err.message);
@@ -84,28 +84,28 @@ export default function QuizEditor() {
     }
   }
 
-  if (loading) return <div className="screen">Loading…</div>;
+  if (loading) return <div className="screen">लोड हो रहा है…</div>;
 
   return (
     <div className="screen" style={{ maxWidth: 760 }}>
       <div className="card">
         <div className="top-bar">
           <h1 className="brand-title" style={{ margin: 0 }}>
-            {isNew ? 'New Quiz' : 'Edit Quiz'}
+            {isNew ? 'नया क्विज़' : 'क्विज़ संपादित करें'}
           </h1>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => navigate('/host/dashboard')}>
-            Back
+            वापस
           </button>
         </div>
 
         <div className="field">
-          <label htmlFor="title">Quiz Title</label>
-          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Jain Tirthankaras Quiz" />
+          <label htmlFor="title">क्विज़ शीर्षक</label>
+          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="उदाहरण: जैन तीर्थंकर क्विज़" />
         </div>
 
         <p className="muted" style={{ textAlign: 'left', marginBottom: 16 }}>
-          {filledCount} / {questions.length} questions fully filled ({TARGET_QUESTIONS} recommended for a full round). Only
-          fully-filled questions (text + 4 options) are saved.
+          {filledCount} / {questions.length} प्रश्न पूरी तरह भरे गए हैं ({TARGET_QUESTIONS} पूरे राउंड के लिए अनुशंसित हैं)।
+          केवल पूरी तरह भरे गए प्रश्न (पाठ + 4 विकल्प) सहेजे जाते हैं।
         </p>
 
         {error && <p className="error-text">{error}</p>}
@@ -114,13 +114,13 @@ export default function QuizEditor() {
         {questions.map((q, qi) => (
           <div className="question-editor-row" key={qi}>
             <div className="top-bar">
-              <strong>Question {qi + 1}</strong>
+              <strong>प्रश्न {qi + 1}</strong>
               <button
                 className="btn btn-secondary"
                 style={{ width: 'auto', padding: '4px 10px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
                 onClick={() => removeQuestion(qi)}
               >
-                Remove
+                हटाएं
               </button>
             </div>
             <div className="field">
@@ -128,7 +128,7 @@ export default function QuizEditor() {
                 rows={2}
                 value={q.text}
                 onChange={(e) => updateQuestion(qi, { text: e.target.value })}
-                placeholder="Question text"
+                placeholder="प्रश्न का पाठ"
               />
             </div>
             {q.options.map((opt, oi) => (
@@ -138,26 +138,26 @@ export default function QuizEditor() {
                   name={`correct-${qi}`}
                   checked={q.correctIndex === oi}
                   onChange={() => updateQuestion(qi, { correctIndex: oi })}
-                  title="Mark as correct answer"
+                  title="सही उत्तर के रूप में चिह्नित करें"
                 />
                 <input
                   type="text"
                   value={opt}
                   onChange={(e) => updateOption(qi, oi, e.target.value)}
-                  placeholder={`Option ${oi + 1}`}
+                  placeholder={`विकल्प ${oi + 1}`}
                 />
               </div>
             ))}
-            <span className="muted">Select the radio next to the correct option.</span>
+            <span className="muted">सही विकल्प के आगे रेडियो चुनें।</span>
           </div>
         ))}
 
         <button className="btn btn-secondary" style={{ marginBottom: 20 }} onClick={addQuestion}>
-          + Add Question
+          + प्रश्न जोड़ें
         </button>
 
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Quiz'}
+          {saving ? 'सहेजा जा रहा है…' : 'क्विज़ सहेजें'}
         </button>
       </div>
     </div>
