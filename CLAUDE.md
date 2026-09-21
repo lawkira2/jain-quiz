@@ -73,9 +73,37 @@ changing quiz storage behavior, change it in both backends or explicitly decide 
   participant sees a live "N/M answered" bar while their own answer is locked in, not just the host.
   Keep broadcasting this to the whole room if you touch it again; narrowing it back to host-only would
   silently break that participant-side progress bar in `Play.jsx`.
-- Scoring (`server/scoring.js`) is a fixed speed-bracket table (<2s/2-5s/6-10s/11-15s = 10/7.5/5/3
-  points, wrong/no-answer = 0), computed from **server-measured** elapsed time
-  (`Date.now() - room.questionStartTime`), never trusted from the client.
+- **`participant:answer` does O(room size) work per answer** (the `answeredCount()` scan, plus the
+  room-wide broadcast above) — so a burst of simultaneous answers costs roughly O(n²), not O(n). Load
+  tested 2026-09-21 against the live Render deployment: 120 simulated participants all joining, then
+  all answering, in the same instant (an intentionally worst-case burst — real answers spread out over
+  the 15s window) — 0 failures, but ack latency degraded under the burst (join ack p95 ~3.7s, answer
+  ack p95 ~2.8s, max ~4s) on the free tier's limited CPU. Scoring uses server-receipt time
+  (`Date.now() - room.questionStartTime`), so in a severe-enough burst a participant queued behind
+  many others' answers could be scored slower than they actually tapped — real risk only in a genuine
+  everyone-taps-in-the-same-instant scenario, more plausible as participant count approaches the
+  documented 500 cap than it was at 120. Optimizing this (e.g. debouncing the broadcast, or only
+  recomputing `answeredCount` incrementally) is real, scoped future work if a test at higher N shows
+  it degrading further — not done as part of this test.
+- **Scoring (`server/scoring.js`) is a Kahoot-style continuous formula** (changed 2026-09-21, was a
+  4-bracket table): `round(1000 * (1 - fraction/2))` for a correct answer, where `fraction` is elapsed
+  time / 15s clamped to `[0,1]` — instant = 1000, right at the buzzer = 500, linear in between, wrong
+  or no answer = 0. The bracket table clustered most real answers into 2-3 tiers; this makes every
+  millisecond count, matching Kahoot's actual model rather than a coarse approximation of it.
+- **Elapsed time is now measured on the participant's own screen, not the server** (2026-09-21) — a
+  deliberate reversal of "never trust the client," made *because of* the O(n²) burst-latency finding
+  above: server-receipt timing was penalizing people for the server's own processing queue, not their
+  reaction speed. `Play.jsx` records `Date.now()` when its `question:show` handler fires (or, on a
+  mid-question reconnect, when the resumed state renders — that's this screen's first look at it
+  either way) and again on tap; the difference is sent as `elapsedMs` in `participant:answer`.
+  `socketHandlers.js` clamps it to `[0, QUESTION_LIMIT_MS]` and — this matters — **falls back to the
+  worst score (`QUESTION_LIMIT_MS`), not the best, for a missing/non-finite value**, so a malformed or
+  adversarial payload can't be a free instant-answer. This does mean a participant *could* forge a
+  smaller `elapsedMs` to inflate their score — accepted deliberately for this app (a casual community
+  quiz, no prizes at stake) in exchange for fairness under server load; don't quietly re-add
+  server-side timing without re-litigating that trade-off with whoever owns this decision. Verified
+  with a throwaway script covering the formula's endpoints, a mid-window value, and all three
+  malformed-input cases (missing / negative / over-limit `elapsedMs`).
 
 **REST vs Socket.IO split**: quiz CRUD and room *creation* are REST (`server/index.js`, gated by
 `x-host-passcode` header via `requireHost` middleware); everything about a *live* session (joining,

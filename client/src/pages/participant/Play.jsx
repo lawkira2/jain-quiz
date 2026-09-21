@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { getSocket, emitAsync } from '../../lib/socket.js';
 import { loadParticipantSession, saveParticipantSession, clearParticipantSession } from '../../lib/participantSession.js';
@@ -30,6 +30,9 @@ export default function Play() {
   const [personalResult, setPersonalResult] = useState(null);
   const [roundResults, setRoundResults] = useState(null);
   const [finalLeaderboard, setFinalLeaderboard] = useState(null);
+  // When *this* screen first showed the current question — the scoring clock starts here, not
+  // whenever the server happens to receive the answer (see CLAUDE.md's load-test note on why).
+  const questionShownAtRef = useRef(null);
 
   useEffect(() => {
     if (!name) {
@@ -56,6 +59,8 @@ export default function Play() {
         setQuestion(resume.question);
         setSelected(resume.alreadyAnswered ? resume.selectedIndex : null);
         setAnsweredCount({ count: 0, total: 0 });
+        // Reconnecting mid-question: this is this screen's first look at it, so the clock starts now.
+        questionShownAtRef.current = Date.now();
         setPhase(resume.alreadyAnswered ? 'answered' : 'question');
       } else if (resume.status === 'results') {
         setQuestion(resume.question);
@@ -80,6 +85,7 @@ export default function Play() {
       setPersonalResult(null);
       setRoundResults(null);
       setAnsweredCount({ count: 0, total: 0 });
+      questionShownAtRef.current = Date.now();
       setPhase('question');
     });
     socket.on('question:answeredCount', (payload) => setAnsweredCount(payload));
@@ -111,9 +117,12 @@ export default function Play() {
 
   async function handleAnswer(optionIndex) {
     if (selected !== null) return;
+    const elapsedMs = questionShownAtRef.current
+      ? Math.max(0, Math.min(Date.now() - questionShownAtRef.current, question?.limitMs ?? 15000))
+      : 0;
     setSelected(optionIndex);
     setPhase('answered');
-    const res = await emitAsync('participant:answer', { pin, optionIndex });
+    const res = await emitAsync('participant:answer', { pin, optionIndex, elapsedMs });
     if (!res?.ok) {
       setError(tServer(res?.error) || t('playJoinErrorFallback'));
     }

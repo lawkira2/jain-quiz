@@ -225,7 +225,7 @@ export function registerSocketHandlers(io) {
       ack?.({ ok: true });
     });
 
-    socket.on('participant:answer', ({ pin, optionIndex } = {}, ack) => {
+    socket.on('participant:answer', ({ pin, optionIndex, elapsedMs: clientElapsedMs } = {}, ack) => {
       const room = getRoom(pin);
       if (!room || room.status !== 'question') return ack?.({ ok: false, error: 'कोई सक्रिय प्रश्न नहीं है।' });
       const participant = participantId ? room.participants.get(participantId) : null;
@@ -233,7 +233,11 @@ export function registerSocketHandlers(io) {
       if (participant.currentAnswer) return ack?.({ ok: false, error: 'पहले ही उत्तर दे दिया गया है।' });
       if (![0, 1, 2, 3].includes(optionIndex)) return ack?.({ ok: false, error: 'अमान्य विकल्प।' });
 
-      const elapsedMs = Date.now() - room.questionStartTime;
+      // Scored from the participant's own screen (question-shown -> tap), not server-receipt
+      // time — a slow/busy server tick (see CLAUDE.md's load-test note) shouldn't cost someone
+      // points for reacting fast. Clamped to the question window; an untrusted/malformed value
+      // falls back to the worst score rather than the best, so a missing field can't be a freebie.
+      const elapsedMs = Number.isFinite(clientElapsedMs) ? Math.max(0, Math.min(clientElapsedMs, QUESTION_LIMIT_MS)) : QUESTION_LIMIT_MS;
       participant.currentAnswer = { questionIndex: room.currentQuestionIndex, optionIndex, elapsedMs };
       ack?.({ ok: true, locked: true });
 
