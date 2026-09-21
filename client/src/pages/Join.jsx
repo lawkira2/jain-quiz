@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import LanguageToggle from '../components/LanguageToggle.jsx';
+import { useLanguage } from '../lib/i18n.jsx';
 
 export default function Join() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const pinFromLink = (searchParams.get('pin') || '').toUpperCase();
   const [pin, setPin] = useState(pinFromLink);
@@ -13,37 +16,38 @@ export default function Join() {
     e.preventDefault();
     const cleanPin = pin.trim().toUpperCase();
     const cleanName = name.trim();
-    if (cleanPin.length < 4) return setError('अपने गुरु द्वारा दिखाया गया रूम पिन दर्ज करें।');
-    if (!cleanName) return setError('अपना नाम दर्ज करें।');
+    if (cleanPin.length < 4) return setError(t('joinErrorPin'));
+    if (!cleanName) return setError(t('joinErrorName'));
     setError('');
     navigate(`/play/${cleanPin}`, { state: { name: cleanName } });
   }
 
   return (
     <div className="screen">
+      <LanguageToggle />
       <div className="card">
-        <h1 className="brand-title">क्विज़ में शामिल हों</h1>
-        <p className="brand-subtitle">अपने गुरु द्वारा साझा किया गया पिन और अपना नाम दर्ज करें।</p>
+        <h1 className="brand-title">{t('joinTitle')}</h1>
+        <p className="brand-subtitle">{t('joinSubtitle')}</p>
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
           <div className="field">
-            <label htmlFor="pin">रूम पिन</label>
+            <label htmlFor="pin">{t('joinPinLabel')}</label>
             <input
               id="pin"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="उदाहरण: K3F7ZQ"
+              placeholder={t('joinPinPlaceholder')}
               autoComplete="off"
               autoCapitalize="characters"
               maxLength={8}
             />
           </div>
           <div className="field">
-            <label htmlFor="name">आपका नाम</label>
+            <label htmlFor="name">{t('joinNameLabel')}</label>
             <input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="उदाहरण: प्रिया"
+              placeholder={t('joinNamePlaceholder')}
               autoComplete="off"
               maxLength={24}
               autoFocus={!!pinFromLink}
@@ -51,7 +55,7 @@ export default function Join() {
           </div>
           {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn btn-primary">
-            रूम में प्रवेश करें
+            {t('joinSubmit')}
           </button>
         </form>
       </div>

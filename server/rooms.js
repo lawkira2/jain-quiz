@@ -23,7 +23,9 @@ export function createRoom(quiz) {
     questionStartTime: null,
     questionTimeout: null,
     hostSocketId: null,
-    participants: new Map(), // socketId -> participant
+    // Keyed by a stable participant id (survives reconnects), not the ephemeral socket id —
+    // see `socketId` on each participant for their *current* live connection.
+    participants: new Map(),
     createdAt: Date.now(),
   };
   rooms.set(pin, room);
@@ -42,7 +44,8 @@ export function deleteRoom(pin) {
 
 export function addParticipant(room, { socketId, name }) {
   const participant = {
-    id: socketId,
+    id: nanoid(12),
+    socketId,
     name,
     score: 0,
     connected: true,
@@ -50,7 +53,7 @@ export function addParticipant(room, { socketId, name }) {
     answers: [], // history: {questionIndex, optionIndex, correct, points, elapsedMs}
     joinedAt: Date.now(),
   };
-  room.participants.set(socketId, participant);
+  room.participants.set(participant.id, participant);
   return participant;
 }
 

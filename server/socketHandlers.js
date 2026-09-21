@@ -39,7 +39,7 @@ function closeQuestion(io, room) {
     p.answers.push({ questionIndex: room.currentQuestionIndex, optionIndex: answer?.optionIndex ?? null, correct, points });
     p.currentAnswer = null;
 
-    io.to(p.id).emit('participant:result', {
+    io.to(p.socketId).emit('participant:result', {
       correct,
       points,
       score: p.score,
@@ -72,10 +72,52 @@ function answeredCount(room) {
   return n;
 }
 
+// What a reconnecting participant needs to jump straight back into the live state,
+// instead of always restarting at the lobby.
+function resumeState(room, participant) {
+  if (room.status === 'question') {
+    const answered = participant.currentAnswer?.questionIndex === room.currentQuestionIndex;
+    return {
+      status: 'question',
+      question: questionPayload(room),
+      alreadyAnswered: answered,
+      selectedIndex: answered ? participant.currentAnswer.optionIndex : null,
+    };
+  }
+  if (room.status === 'results') {
+    const q = room.quiz.questions[room.currentQuestionIndex];
+    const counts = [0, 0, 0, 0];
+    for (const p of room.participants.values()) {
+      const ans = p.answers.find((a) => a.questionIndex === room.currentQuestionIndex);
+      if (ans && ans.optionIndex !== null) counts[ans.optionIndex] += 1;
+    }
+    const myAnswer = participant.answers.find((a) => a.questionIndex === room.currentQuestionIndex);
+    return {
+      status: 'results',
+      question: questionPayload(room),
+      results: {
+        index: room.currentQuestionIndex,
+        correctIndex: q.correctIndex,
+        counts,
+        leaderboard: leaderboard(room, { limit: 10 }),
+        isLastQuestion: room.currentQuestionIndex === room.quiz.questions.length - 1,
+      },
+      personalResult: myAnswer
+        ? { correct: myAnswer.correct, points: myAnswer.points, score: participant.score, correctIndex: q.correctIndex }
+        : null,
+    };
+  }
+  if (room.status === 'final') {
+    return { status: 'final', leaderboard: leaderboard(room) };
+  }
+  return { status: 'lobby' };
+}
+
 export function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     let joinedPin = null;
     let role = null; // 'host' | 'participant'
+    let participantId = null;
 
     socket.on('host:join', ({ pin, passcode } = {}, ack) => {
       const room = getRoom(pin);
@@ -97,9 +139,35 @@ export function registerSocketHandlers(io) {
       });
     });
 
-    socket.on('participant:join', ({ pin, name } = {}, ack) => {
+    socket.on('participant:join', ({ pin, name, participantId: knownId } = {}, ack) => {
       const room = getRoom(pin);
       if (!room) return ack?.({ ok: false, error: 'रूम नहीं मिला। पिन जांचें।' });
+
+      // Reconnect path: a participant who already has a spot in this room (dropped
+      // connection, backgrounded phone, page reload) can rejoin at any room status —
+      // this restores their existing score/answers onto the new socket instead of
+      // treating them as a brand-new player.
+      const existing = knownId ? room.participants.get(knownId) : null;
+      if (existing) {
+        existing.socketId = socket.id;
+        existing.connected = true;
+        socket.join(room.pin);
+        joinedPin = room.pin;
+        role = 'participant';
+        participantId = existing.id;
+
+        io.to(room.pin).emit('lobby:update', {
+          count: room.participants.size,
+          participants: publicParticipantList(room),
+        });
+        return ack?.({
+          ok: true,
+          participant: { id: existing.id, name: existing.name },
+          quizTitle: room.quiz.title,
+          resume: resumeState(room, existing),
+        });
+      }
+
       if (room.status !== 'lobby') return ack?.({ ok: false, error: 'यह क्विज़ पहले ही शुरू हो चुका है।' });
       if (room.participants.size >= MAX_PARTICIPANTS) return ack?.({ ok: false, error: 'रूम भर गया है।' });
       const cleanName = (name || '').trim().slice(0, 24);
@@ -109,12 +177,18 @@ export function registerSocketHandlers(io) {
       socket.join(room.pin);
       joinedPin = room.pin;
       role = 'participant';
+      participantId = participant.id;
 
       io.to(room.pin).emit('lobby:update', {
         count: room.participants.size,
         participants: publicParticipantList(room),
       });
-      ack?.({ ok: true, participant: { id: participant.id, name: participant.name }, quizTitle: room.quiz.title });
+      ack?.({
+        ok: true,
+        participant: { id: participant.id, name: participant.name },
+        quizTitle: room.quiz.title,
+        resume: { status: 'lobby' },
+      });
     });
 
     socket.on('host:start', ({ pin } = {}, ack) => {
@@ -154,7 +228,7 @@ export function registerSocketHandlers(io) {
     socket.on('participant:answer', ({ pin, optionIndex } = {}, ack) => {
       const room = getRoom(pin);
       if (!room || room.status !== 'question') return ack?.({ ok: false, error: 'कोई सक्रिय प्रश्न नहीं है।' });
-      const participant = room.participants.get(socket.id);
+      const participant = participantId ? room.participants.get(participantId) : null;
       if (!participant) return ack?.({ ok: false, error: 'आप शामिल नहीं हुए हैं।' });
       if (participant.currentAnswer) return ack?.({ ok: false, error: 'पहले ही उत्तर दे दिया गया है।' });
       if (![0, 1, 2, 3].includes(optionIndex)) return ack?.({ ok: false, error: 'अमान्य विकल्प।' });
@@ -163,12 +237,10 @@ export function registerSocketHandlers(io) {
       participant.currentAnswer = { questionIndex: room.currentQuestionIndex, optionIndex, elapsedMs };
       ack?.({ ok: true, locked: true });
 
-      if (room.hostSocketId) {
-        io.to(room.hostSocketId).emit('question:answeredCount', {
-          count: answeredCount(room),
-          total: room.participants.size,
-        });
-      }
+      io.to(room.pin).emit('question:answeredCount', {
+        count: answeredCount(room),
+        total: room.participants.size,
+      });
       if (answeredCount(room) >= room.participants.size && room.participants.size > 0) {
         closeQuestion(io, room);
       }
@@ -179,8 +251,10 @@ export function registerSocketHandlers(io) {
       const room = getRoom(joinedPin);
       if (!room) return;
       if (role === 'participant') {
-        const participant = room.participants.get(socket.id);
-        if (participant) {
+        const participant = participantId ? room.participants.get(participantId) : null;
+        // Only mark disconnected if this socket is still the participant's current one —
+        // a reconnect may have already re-attached a newer socket to this participant.
+        if (participant && participant.socketId === socket.id) {
           participant.connected = false;
           io.to(room.pin).emit('lobby:update', {
             count: room.participants.size,

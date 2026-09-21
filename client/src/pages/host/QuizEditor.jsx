@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, getHostPasscode } from '../../lib/api.js';
+import LanguageToggle from '../../components/LanguageToggle.jsx';
+import { useLanguage } from '../../lib/i18n.jsx';
 
 const TARGET_QUESTIONS = 25;
 
@@ -11,6 +13,7 @@ function emptyQuestion() {
 export default function QuizEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t, tServer } = useLanguage();
   const isNew = !id;
 
   const [title, setTitle] = useState('');
@@ -36,7 +39,7 @@ export default function QuizEditor() {
             quiz.questions.length ? quiz.questions : Array.from({ length: TARGET_QUESTIONS }, emptyQuestion),
           );
         })
-        .catch((err) => setError(err.message))
+        .catch((err) => setError(tServer(err.message)))
         .finally(() => setLoading(false));
     }
   }, [id]);
@@ -64,9 +67,9 @@ export default function QuizEditor() {
   async function handleSave() {
     setError('');
     setNotice('');
-    if (!title.trim()) return setError('क्विज़ को एक शीर्षक दें।');
+    if (!title.trim()) return setError(t('editorTitleRequiredError'));
     const complete = questions.filter((q) => q.text.trim() && q.options.every((o) => o.trim()));
-    if (complete.length === 0) return setError('कम से कम एक पूरी तरह भरा हुआ प्रश्न जोड़ें (पाठ + 4 विकल्प)।');
+    if (complete.length === 0) return setError(t('editorMinQuestionError'));
 
     setSaving(true);
     try {
@@ -75,52 +78,52 @@ export default function QuizEditor() {
         navigate(`/host/quiz/${quiz.id}`);
       } else {
         await api.updateQuiz(id, { title, questions: complete });
-        setNotice('सहेजा गया।');
+        setNotice(t('editorSaved'));
       }
     } catch (err) {
-      setError(err.message);
+      setError(tServer(err.message));
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <div className="screen">लोड हो रहा है…</div>;
+  if (loading) return <div className="screen">{t('loading')}</div>;
 
   return (
     <div className="screen" style={{ maxWidth: 760 }}>
+      <LanguageToggle />
       <div className="card">
         <div className="top-bar">
           <h1 className="brand-title" style={{ margin: 0 }}>
-            {isNew ? 'नया क्विज़' : 'क्विज़ संपादित करें'}
+            {isNew ? t('editorNewTitle') : t('editorEditTitle')}
           </h1>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={() => navigate('/host/dashboard')}>
-            वापस
+            {t('editorBack')}
           </button>
         </div>
 
         <div className="field">
-          <label htmlFor="title">क्विज़ शीर्षक</label>
-          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="उदाहरण: जैन तीर्थंकर क्विज़" />
+          <label htmlFor="title">{t('editorTitleLabel')}</label>
+          <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('editorTitlePlaceholder')} />
         </div>
 
         <p className="muted" style={{ textAlign: 'left', marginBottom: 16 }}>
-          {filledCount} / {questions.length} प्रश्न पूरी तरह भरे गए हैं ({TARGET_QUESTIONS} पूरे राउंड के लिए अनुशंसित हैं)।
-          केवल पूरी तरह भरे गए प्रश्न (पाठ + 4 विकल्प) सहेजे जाते हैं।
+          {t('editorFilledStatus', { filled: filledCount, total: questions.length, target: TARGET_QUESTIONS })}
         </p>
 
         {error && <p className="error-text">{error}</p>}
-        {notice && <p style={{ color: 'var(--good)', marginTop: -6, marginBottom: 12 }}>{notice}</p>}
+        {notice && <p style={{ color: 'var(--color-good)', marginTop: -6, marginBottom: 12 }}>{notice}</p>}
 
         {questions.map((q, qi) => (
           <div className="question-editor-row" key={qi}>
             <div className="top-bar">
-              <strong>प्रश्न {qi + 1}</strong>
+              <strong>{t('editorQuestionLabel', { n: qi + 1 })}</strong>
               <button
                 className="btn btn-secondary"
-                style={{ width: 'auto', padding: '4px 10px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
+                style={{ width: 'auto', padding: '4px 10px', borderColor: 'var(--color-critical)', color: 'var(--color-critical)' }}
                 onClick={() => removeQuestion(qi)}
               >
-                हटाएं
+                {t('editorRemove')}
               </button>
             </div>
             <div className="field">
@@ -128,7 +131,7 @@ export default function QuizEditor() {
                 rows={2}
                 value={q.text}
                 onChange={(e) => updateQuestion(qi, { text: e.target.value })}
-                placeholder="प्रश्न का पाठ"
+                placeholder={t('editorQuestionPlaceholder')}
               />
             </div>
             {q.options.map((opt, oi) => (
@@ -138,26 +141,26 @@ export default function QuizEditor() {
                   name={`correct-${qi}`}
                   checked={q.correctIndex === oi}
                   onChange={() => updateQuestion(qi, { correctIndex: oi })}
-                  title="सही उत्तर के रूप में चिह्नित करें"
+                  title={t('editorCorrectRadioTitle')}
                 />
                 <input
                   type="text"
                   value={opt}
                   onChange={(e) => updateOption(qi, oi, e.target.value)}
-                  placeholder={`विकल्प ${oi + 1}`}
+                  placeholder={t('editorOptionPlaceholder', { n: oi + 1 })}
                 />
               </div>
             ))}
-            <span className="muted">सही विकल्प के आगे रेडियो चुनें।</span>
+            <span className="muted">{t('editorCorrectHint')}</span>
           </div>
         ))}
 
         <button className="btn btn-secondary" style={{ marginBottom: 20 }} onClick={addQuestion}>
-          + प्रश्न जोड़ें
+          {t('editorAddQuestion')}
         </button>
 
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'सहेजा जा रहा है…' : 'क्विज़ सहेजें'}
+          {saving ? t('editorSaving') : t('editorSaveQuiz')}
         </button>
       </div>
     </div>

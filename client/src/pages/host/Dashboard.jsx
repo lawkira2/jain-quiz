@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, getHostPasscode, clearHostPasscode } from '../../lib/api.js';
+import LanguageToggle from '../../components/LanguageToggle.jsx';
+import { useLanguage } from '../../lib/i18n.jsx';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t, tServer } = useLanguage();
   const [quizzes, setQuizzes] = useState([]);
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(null);
@@ -21,13 +24,13 @@ export default function Dashboard() {
       const { quizzes } = await api.listQuizzes();
       setQuizzes(quizzes);
     } catch (err) {
-      setError(err.message);
+      setError(tServer(err.message));
       if (/passcode/i.test(err.message)) navigate('/host');
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('इस क्विज़ को हटाएं? इसे पूर्ववत नहीं किया जा सकता।')) return;
+    if (!confirm(t('dashboardConfirmDelete'))) return;
     await api.deleteQuiz(id);
     refresh();
   }
@@ -35,7 +38,7 @@ export default function Dashboard() {
   async function handleStart(quiz) {
     setError('');
     if (quiz.questionCount === 0) {
-      setError(`"${quiz.title}" में अभी कोई प्रश्न नहीं है। पहले इसे संपादित करें।`);
+      setError(t('dashboardNoQuestionsError', { title: quiz.title }));
       return;
     }
     setStarting(quiz.id);
@@ -43,7 +46,7 @@ export default function Dashboard() {
       const { pin } = await api.createRoom(quiz.id);
       navigate(`/host/session/${pin}`);
     } catch (err) {
-      setError(err.message);
+      setError(tServer(err.message));
     } finally {
       setStarting(null);
     }
@@ -56,30 +59,31 @@ export default function Dashboard() {
 
   return (
     <div className="screen" style={{ maxWidth: 640 }}>
+      <LanguageToggle />
       <div className="card">
         <div className="top-bar">
           <h1 className="brand-title" style={{ margin: 0 }}>
-            गुरु डैशबोर्ड
+            {t('dashboardTitle')}
           </h1>
           <button className="btn btn-secondary" style={{ width: 'auto', padding: '8px 14px' }} onClick={handleLogout}>
-            लॉग आउट
+            {t('dashboardLogout')}
           </button>
         </div>
-        <p className="brand-subtitle">क्विज़ बनाएं, फिर अपने छात्रों के लिए लाइव सत्र शुरू करें।</p>
+        <p className="brand-subtitle">{t('dashboardSubtitle')}</p>
 
         {error && <p className="error-text">{error}</p>}
 
         <button className="btn btn-primary" style={{ marginBottom: 20 }} onClick={() => navigate('/host/quiz/new')}>
-          + नया क्विज़
+          {t('dashboardNewQuiz')}
         </button>
 
-        {quizzes.length === 0 && <p className="muted">अभी तक कोई क्विज़ नहीं है। शुरू करने के लिए एक बनाएं।</p>}
+        {quizzes.length === 0 && <p className="muted">{t('dashboardEmpty')}</p>}
 
         {quizzes.map((quiz) => (
           <div className="quiz-list-row" key={quiz.id}>
             <div>
               <strong>{quiz.title}</strong>
-              <div className="muted">{quiz.questionCount} प्रश्न</div>
+              <div className="muted">{t('dashboardQuestionCount', { n: quiz.questionCount })}</div>
             </div>
             <div className="btn-row" style={{ width: 'auto' }}>
               <button
@@ -87,14 +91,14 @@ export default function Dashboard() {
                 style={{ width: 'auto', padding: '8px 14px' }}
                 onClick={() => navigate(`/host/quiz/${quiz.id}`)}
               >
-                संपादित करें
+                {t('dashboardEdit')}
               </button>
               <button
                 className="btn btn-secondary"
-                style={{ width: 'auto', padding: '8px 14px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
+                style={{ width: 'auto', padding: '8px 14px', borderColor: 'var(--color-critical)', color: 'var(--color-critical)' }}
                 onClick={() => handleDelete(quiz.id)}
               >
-                हटाएं
+                {t('dashboardDelete')}
               </button>
               <button
                 className="btn btn-primary"
@@ -102,7 +106,7 @@ export default function Dashboard() {
                 disabled={starting === quiz.id}
                 onClick={() => handleStart(quiz)}
               >
-                {starting === quiz.id ? 'शुरू हो रहा है…' : 'सत्र शुरू करें'}
+                {starting === quiz.id ? t('dashboardStarting') : t('dashboardStartSession')}
               </button>
             </div>
           </div>

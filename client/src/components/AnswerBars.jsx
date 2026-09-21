@@ -1,4 +1,4 @@
-const COLORS = ['var(--opt-1)', 'var(--opt-2)', 'var(--opt-3)', 'var(--opt-4)'];
+const COLORS = ['var(--color-opt-1)', 'var(--color-opt-2)', 'var(--color-opt-3)', 'var(--color-opt-4)'];
 
 export default function AnswerBars({ options, counts, correctIndex }) {
   const max = Math.max(1, ...counts);
@@ -12,7 +12,7 @@ export default function AnswerBars({ options, counts, correctIndex }) {
               style={{
                 width: `${(counts[i] / max) * 100}%`,
                 background: COLORS[i],
-                outline: i === correctIndex ? '3px solid var(--good)' : 'none',
+                outline: i === correctIndex ? '3px solid var(--color-good)' : 'none',
                 outlineOffset: '-3px',
               }}
             />

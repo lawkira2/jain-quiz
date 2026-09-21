@@ -6,10 +6,13 @@ import Timer from '../../components/Timer.jsx';
 import AnswerBars from '../../components/AnswerBars.jsx';
 import LeaderboardList from '../../components/LeaderboardList.jsx';
 import JoinQRCode from '../../components/JoinQRCode.jsx';
+import LanguageToggle from '../../components/LanguageToggle.jsx';
+import { useLanguage } from '../../lib/i18n.jsx';
 
 export default function HostSession() {
   const { pin } = useParams();
   const navigate = useNavigate();
+  const { t, tServer } = useLanguage();
 
   const [phase, setPhase] = useState('connecting'); // connecting | lobby | question | results | final | error
   const [error, setError] = useState('');
@@ -32,7 +35,7 @@ export default function HostSession() {
     async function join() {
       const res = await emitAsync('host:join', { pin, passcode: getHostPasscode() });
       if (!res?.ok) {
-        setError(res?.error || 'रूम में शामिल नहीं हो सके।');
+        setError(tServer(res?.error) || t('stageJoinError'));
         setPhase('error');
         return;
       }
@@ -72,7 +75,7 @@ export default function HostSession() {
   async function handleStart() {
     setBusy(true);
     const res = await emitAsync('host:start', { pin });
-    if (!res?.ok) setError(res.error);
+    if (!res?.ok) setError(tServer(res.error));
     setBusy(false);
   }
 
@@ -83,108 +86,131 @@ export default function HostSession() {
   }
 
   async function handleEnd() {
-    if (!confirm('सभी के लिए यह सत्र समाप्त करें?')) return;
+    if (!confirm(t('stageConfirmEnd'))) return;
     await emitAsync('host:end', { pin });
     navigate('/host/dashboard');
   }
 
-  if (phase === 'connecting') return <div className="screen">कनेक्ट हो रहा है…</div>;
+  if (phase === 'connecting') return <div className="screen">{t('stageConnecting')}</div>;
   if (phase === 'error')
     return (
       <div className="screen">
+        <LanguageToggle />
         <div className="card">
           <p className="error-text">{error}</p>
           <button className="btn btn-primary" onClick={() => navigate('/host/dashboard')}>
-            डैशबोर्ड पर वापस जाएं
+            {t('stageBackToDashboard')}
           </button>
         </div>
       </div>
     );
 
   return (
-    <div className="screen" style={{ maxWidth: 760 }}>
-      <div className="card">
-        <div className="top-bar">
+    <div className="stage">
+      <div className="stage-topbar">
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span className="badge">{quizTitle}</span>
-          <button
-            className="btn btn-secondary"
-            style={{ width: 'auto', padding: '6px 12px', borderColor: 'var(--critical)', color: 'var(--critical)' }}
-            onClick={handleEnd}
-          >
-            सत्र समाप्त करें
+          {phase !== 'lobby' && <span className="badge stage-pin-chip">{t('stagePinBadge', { pin })}</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <LanguageToggle inline />
+          <button className="stage-quit" onClick={handleEnd}>
+            {t('stageEndSession')}
           </button>
         </div>
-
-        {phase === 'lobby' && (
-          <>
-            <p className="muted">रूम पिन — इसे अपने छात्रों के साथ साझा करें</p>
-            <div className="pin-display">{pin}</div>
-            <div style={{ margin: '8px 0 16px' }}>
-              <JoinQRCode url={`${window.location.origin}/join?pin=${pin}`} />
-              <p className="muted" style={{ marginTop: 10 }}>
-                कैमरा या क्यूआर स्कैनर से स्कैन करें — पिन अपने आप भर जाएगा
-              </p>
-            </div>
-            <p className="muted" style={{ marginBottom: 20 }}>
-              {participants.length} शामिल हुए
-            </p>
-            <div style={{ maxHeight: 240, overflowY: 'auto', width: '100%', marginBottom: 20 }}>
-              <ul className="leaderboard-list">
-                {participants.map((p) => (
-                  <li key={p.id} className="leaderboard-row">
-                    <span className="leaderboard-name">{p.name}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button className="btn btn-primary" disabled={busy || participants.length === 0} onClick={handleStart}>
-              {participants.length === 0 ? 'छात्रों की प्रतीक्षा हो रही है…' : busy ? 'शुरू हो रहा है…' : 'क्विज़ शुरू करें'}
-            </button>
-          </>
-        )}
-
-        {phase === 'question' && question && (
-          <>
-            <p className="muted">
-              प्रश्न {question.index + 1} / {question.total}
-            </p>
-            <h2>{question.text}</h2>
-            <Timer startTime={question.startTime} limitMs={question.limitMs} />
-            <p className="muted" style={{ marginBottom: 20 }}>
-              {answeredCount.count} / {answeredCount.total || participants.length} ने उत्तर दिया
-            </p>
-            <button className="btn btn-secondary" onClick={handleNext} disabled={busy}>
-              अभी उत्तर दिखाएं
-            </button>
-          </>
-        )}
-
-        {phase === 'results' && results && question && (
-          <>
-            <p className="muted">
-              प्रश्न {results.index + 1} / {totalQuestions}
-            </p>
-            <h2>{question.text}</h2>
-            <p style={{ color: 'var(--good)', fontWeight: 700 }}>सही उत्तर: {question.options[results.correctIndex]}</p>
-            <AnswerBars options={question.options} counts={results.counts} correctIndex={results.correctIndex} />
-            <h3 style={{ marginTop: 20 }}>लीडरबोर्ड</h3>
-            <LeaderboardList entries={results.leaderboard} />
-            <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={handleNext} disabled={busy}>
-              {results.isLastQuestion ? 'अंतिम परिणाम दिखाएं' : 'अगला प्रश्न'}
-            </button>
-          </>
-        )}
-
-        {phase === 'final' && finalLeaderboard && (
-          <>
-            <h2>🏆 अंतिम लीडरबोर्ड</h2>
-            <LeaderboardList entries={finalLeaderboard} />
-            <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={handleEnd}>
-              सत्र समाप्त करें
-            </button>
-          </>
-        )}
       </div>
+
+      {phase === 'lobby' && (
+        <>
+          <p className="stage-eyebrow">{t('stageLobbyEyebrow')}</p>
+          <div className="relative flex items-center justify-center">
+            <span aria-hidden="true" className="stage-pin absolute inset-0 select-none text-brand opacity-60 blur-2xl">
+              {pin}
+            </span>
+            <div className="stage-pin relative">{pin}</div>
+          </div>
+          <div style={{ margin: '8px 0 24px' }}>
+            <JoinQRCode url={`${window.location.origin}/join?pin=${pin}`} size={200} />
+          </div>
+          <p className="stage-status">{t('stageJoined', { n: participants.length })}</p>
+          <div className="stage-count-wall">
+            {participants.map((p) => (
+              <span key={p.id} className="name-chip">
+                {p.name}
+              </span>
+            ))}
+          </div>
+          <div className="stage-actions relative inline-block">
+            {participants.length > 0 && !busy && (
+              <span aria-hidden="true" className="absolute -inset-1.5 rounded-2xl bg-brand/30 blur-lg" />
+            )}
+            <button className="btn btn-primary relative" disabled={busy || participants.length === 0} onClick={handleStart}>
+              {participants.length === 0 ? (
+                t('stageWaitingStudents')
+              ) : busy ? (
+                t('stageStarting')
+              ) : (
+                <>
+                  <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M8 5v14l11-7z" /></svg>
+                  {t('stageStartQuiz')}
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
+
+      {phase === 'question' && question && (
+        <>
+          <p className="stage-eyebrow">{t('stageQuestionProgress', { i: question.index + 1, total: question.total })}</p>
+          <h2 className="stage-question">{question.text}</h2>
+          <Timer variant="stage" startTime={question.startTime} limitMs={question.limitMs} />
+          <p className="stage-answercount">
+            {t('stageAnsweredCount', { count: answeredCount.count, total: answeredCount.total || participants.length })}
+          </p>
+          <div className="stage-actions">
+            <button className="btn btn-secondary" onClick={handleNext} disabled={busy}>
+              {t('stageShowAnswer')}
+            </button>
+          </div>
+        </>
+      )}
+
+      {phase === 'results' && results && question && (
+        <>
+          <p className="stage-eyebrow">{t('stageQuestionProgress', { i: results.index + 1, total: totalQuestions })}</p>
+          <h2 className="stage-question" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.6rem)' }}>
+            {question.text}
+          </h2>
+          <p className="stage-correct">{t('stageCorrectAnswer', { answer: question.options[results.correctIndex] })}</p>
+          <div className="stage-panel">
+            <AnswerBars options={question.options} counts={results.counts} correctIndex={results.correctIndex} />
+          </div>
+          <h3 style={{ marginTop: 28, fontSize: 'clamp(1.3rem, 2vw, 1.8rem)' }}>{t('stageLeaderboard')}</h3>
+          <div className="stage-panel">
+            <LeaderboardList entries={results.leaderboard} />
+          </div>
+          <div className="stage-actions">
+            <button className="btn btn-primary" onClick={handleNext} disabled={busy}>
+              {results.isLastQuestion ? t('stageShowFinal') : t('stageNextQuestion')}
+            </button>
+          </div>
+        </>
+      )}
+
+      {phase === 'final' && finalLeaderboard && (
+        <>
+          <h2 className="stage-question">{t('stageFinalLeaderboard')}</h2>
+          <div className="stage-panel">
+            <LeaderboardList entries={finalLeaderboard} />
+          </div>
+          <div className="stage-actions">
+            <button className="btn btn-primary" onClick={handleEnd}>
+              {t('stageEndSession')}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

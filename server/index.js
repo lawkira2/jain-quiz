@@ -74,7 +74,21 @@ app.get('/api/rooms/:pin', async (req, res) => {
 
 if (isProd) {
   const clientDist = path.resolve(process.cwd(), 'client', 'dist');
-  app.use(express.static(clientDist));
+  app.use(
+    express.static(clientDist, {
+      setHeaders: (res, filePath) => {
+        // client/assets/* is Vite's content-hashed JS/CSS (a rebuild changes the filename), and
+        // client/images/* barely ever changes — safe to cache hard so a participant reconnecting
+        // mid-event (poor wifi, phone locked) doesn't re-download them. Everything else (index.html)
+        // stays revalidate-on-every-request so a redeploy propagates immediately.
+        if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes(`${path.sep}images${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        } else {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }),
+  );
   app.use((req, res) => {
     if (req.path.startsWith('/api')) return res.status(404).end();
     res.sendFile(path.join(clientDist, 'index.html'));

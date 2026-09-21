@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, setHostPasscode, getHostPasscode } from '../lib/api.js';
+import LanguageToggle from '../components/LanguageToggle.jsx';
+import { useLanguage } from '../lib/i18n.jsx';
 
 export default function HostLogin() {
   const navigate = useNavigate();
+  const { t, tServer } = useLanguage();
   const [passcode, setPasscode] = useState(getHostPasscode());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -17,7 +20,7 @@ export default function HostLogin() {
       setHostPasscode(passcode.trim());
       navigate('/host/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError(tServer(err.message));
     } finally {
       setBusy(false);
     }
@@ -25,12 +28,13 @@ export default function HostLogin() {
 
   return (
     <div className="screen">
+      <LanguageToggle />
       <div className="card">
-        <h1 className="brand-title">गुरु लॉगिन</h1>
-        <p className="brand-subtitle">क्विज़ प्रबंधित करने और सत्र चलाने के लिए होस्ट पासकोड दर्ज करें।</p>
+        <h1 className="brand-title">{t('hostLoginTitle')}</h1>
+        <p className="brand-subtitle">{t('hostLoginSubtitle')}</p>
         <form onSubmit={handleSubmit} style={{ width: '100%' }}>
           <div className="field">
-            <label htmlFor="passcode">होस्ट पासकोड</label>
+            <label htmlFor="passcode">{t('hostLoginPasscodeLabel')}</label>
             <input
               id="passcode"
               type="password"
@@ -41,7 +45,7 @@ export default function HostLogin() {
           </div>
           {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? 'जाँच हो रही है…' : 'आगे बढ़ें'}
+            {busy ? t('hostLoginChecking') : t('hostLoginContinue')}
           </button>
         </form>
       </div>
