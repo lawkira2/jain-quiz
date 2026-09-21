@@ -78,13 +78,48 @@ changing quiz storage behavior, change it in both backends or explicitly decide 
   tested 2026-09-21 against the live Render deployment: 120 simulated participants all joining, then
   all answering, in the same instant (an intentionally worst-case burst — real answers spread out over
   the 15s window) — 0 failures, but ack latency degraded under the burst (join ack p95 ~3.7s, answer
-  ack p95 ~2.8s, max ~4s) on the free tier's limited CPU. Scoring uses server-receipt time
-  (`Date.now() - room.questionStartTime`), so in a severe-enough burst a participant queued behind
-  many others' answers could be scored slower than they actually tapped — real risk only in a genuine
-  everyone-taps-in-the-same-instant scenario, more plausible as participant count approaches the
-  documented 500 cap than it was at 120. Optimizing this (e.g. debouncing the broadcast, or only
-  recomputing `answeredCount` incrementally) is real, scoped future work if a test at higher N shows
-  it degrading further — not done as part of this test.
+  ack p95 ~2.8s, max ~4s) on the free tier's limited CPU. This was the original motivation for scoring
+  off client-side elapsed time instead of server-receipt time (see the Scoring note below) — that
+  change means this O(n²) cost no longer affects *fairness*, only *latency*. Optimizing the broadcast
+  itself (debouncing it, or only recomputing `answeredCount` incrementally) is still real, scoped
+  future work, now motivated more by the bandwidth-throttled finding directly below than by fairness.
+- **Bandwidth-throttled load test, 2026-09-21 (unresolved, real risk)**: tested against the *local*
+  server with participants split across worker child processes, each given a genuine (not calculated)
+  per-connection byte-rate-throttled TCP proxy at 128Kbps — see the session log for why local, not
+  Render (a true byte-level throttle needs a raw TCP pipe, which rules out TLS without building a
+  CONNECT-tunnel proxy). Result: fine up to ~50 concurrent throttled participants; **at 100, up to 39%
+  of participants never received `question:show` before the server's 15s timer had already closed the
+  question** (`question:show` delivery to the slowest client took up to ~16.5s — longer than the
+  answer window itself). This got worse, not better, at 150. Root cause not fully isolated — it may be
+  genuine (broadcasting to many simultaneously-bandwidth-constrained sockets is inherently this slow,
+  in which case Render + 350 real slow phones would show the same thing) or partly a test-harness
+  artifact (many throttled connections simulated from one machine have their own resource limits that
+  350 real independent phones wouldn't share) — but the up-to-16.5s number for a **single one-time
+  broadcast** (not the O(n²) per-answer one above) suggests it's not purely the O(n²) issue. The
+  simplest, lowest-risk mitigation if this turns out to matter for the real event: lengthen
+  `QUESTION_LIMIT_MS` to give slow connections more margin — a product/pacing decision, not made
+  unilaterally as part of this test. Don't assume 350 participants at 128Kbps "will probably be fine"
+  without either fixing this or verifying it against more realistic infrastructure than one laptop.
+- **350 @ 1Mbps against the LIVE Render deployment, 2026-09-21 — the real bottleneck isn't bandwidth,
+  it's the connection burst itself.** Built a proper HTTP CONNECT-tunnel throttling proxy (genuine
+  byte-rate limit under real TLS to `jain-quiz.onrender.com`, not the local-only raw-TCP approach
+  above — a CONNECT tunnel never decrypts anything, so the real TLS handshake/SNI/cert still happens
+  end-to-end; this is what made testing against Render itself possible). At 1Mbps/participant,
+  100 concurrent worked perfectly (100/100 through every step). **At 350, the host's own connection
+  was dropped with a Socket.IO "ping timeout" during the ~55s burst of 350 simultaneous new
+  connections, and after it reconnected, 0 of ~348 successfully-joined participants ever received
+  the question** — reproduced identically on two separate full runs. This points to the Render free
+  tier's own instance struggling under a burst of that many simultaneous new connections (not
+  bandwidth, not our server code's O(n²) broadcast cost) — the site was confirmed healthy again
+  within seconds after each run, so it's a burst-capacity issue, not a lasting outage. **This is the
+  single most important finding from today's testing**: 350 Chhatras opening the join link/QR around
+  the same moment (very plausible — that's exactly how the lobby flow works) may currently be able to
+  knock the Guru's own session offline, not just degrade individual participants' experience. Not
+  fixed as part of this test — the two directions worth considering are upgrading past the free tier
+  before the real event, or re-testing after any fix to confirm the burst is actually handled (don't
+  treat "the free tier has been fine for us during development" as evidence against this — this
+  failure mode only appears under the specific burst pattern this test reproduced, ordinary
+  day-to-day traffic doesn't hit it).
 - **Scoring (`server/scoring.js`) is a Kahoot-style continuous formula** (changed 2026-09-21, was a
   4-bracket table): `round(1000 * (1 - fraction/2))` for a correct answer, where `fraction` is elapsed
   time / 15s clamped to `[0,1]` — instant = 1000, right at the buzzer = 500, linear in between, wrong
